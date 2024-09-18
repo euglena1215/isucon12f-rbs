@@ -1,0 +1,572 @@
+# Generated from app.rb with RBS::Inline
+
+# @rbs generic unchecked out Elem
+module Enumerable[unchecked out Elem]
+  def first!: () -> Elem
+end
+
+module Isuconquest
+  class HttpError < StandardError
+    # @dynamic code
+    attr_reader code: Integer
+
+    def initialize: (untyped code, untyped message) -> untyped
+  end
+
+  class App < Sinatra::Base
+    DECK_CARD_NUMBER: ::Integer
+
+    PRESENT_COUNT_PER_PAGE: ::Integer
+
+    SQL_DIRECTORY: ::String
+
+    @json_params: Hash[Symbol, untyped]
+
+    # @rbs () -> Hash[Symbol, untyped]
+    def json_params: () -> Hash[Symbol, untyped]
+
+    # @rbs (?bool) -> Mysql2::Client[Mysql2::ResultAsHash]
+    def connect_db: (?bool) -> Mysql2::Client[Mysql2::ResultAsHash]
+
+    # @rbs () -> Mysql2::Client[Mysql2::ResultAsHash]
+    def db: () -> Mysql2::Client[Mysql2::ResultAsHash]
+
+    # @rbs [T] () { () -> T } -> T
+    def db_transaction: [T] () { () -> T } -> T
+
+    # @rbs (String, Integer, Integer) -> void
+    def check_one_time_token!: (String, Integer, Integer) -> void
+
+    # @rbs (Integer, String) -> void
+    def check_viewer_id!: (Integer, String) -> void
+
+    # @rbs (Integer) -> bool
+    def check_ban?: (Integer) -> bool
+
+    # @rbs () -> Integer
+    def get_request_time: () -> Integer
+
+    # ログイン処理
+    # @rbs (Integer, Integer) -> [User, Array[UserLoginBonus], Array[UserPresent]]
+    def login_process: (Integer, Integer) -> [ User, Array[UserLoginBonus], Array[UserPresent] ]
+
+    # ログイン処理が終わっているか
+    # @rbs (Integer, Integer) -> bool
+    def complete_today_login?: (Integer, Integer) -> bool
+
+    # @rbs (Integer, Integer) -> Array[UserLoginBonus]
+    def obtain_login_bonus: (Integer, Integer) -> Array[UserLoginBonus]
+
+    # プレゼント付与処理
+    # @rbs (Integer, Integer) -> Array[UserPresent]
+    def obtain_present: (Integer, Integer) -> Array[UserPresent]
+
+    # アイテム付与処理
+    # @rbs (Integer, Integer, Integer, Integer, Integer) -> [Array[Integer], Array[UserCard], Array[UserItem]]
+    def obtain_item: (Integer, Integer, Integer, Integer, Integer) -> [ Array[Integer], Array[UserCard], Array[UserItem] ]
+
+    # @rbs () -> Integer
+    def generate_id: () -> Integer
+
+    # @rbs () -> String
+    def generate_uuid: () -> String
+
+    # @rbs () -> Integer
+    def get_user_id: () -> Integer
+
+    class ConsumeUserItemData < Struct[untyped]
+      attr_accessor id(): Integer
+
+      attr_accessor user_id(): Integer
+
+      attr_accessor item_id(): Integer
+
+      attr_accessor item_type(): Integer
+
+      attr_accessor amount(): Integer
+
+      attr_accessor created_at(): Integer
+
+      attr_accessor updated_at(): Integer
+
+      attr_accessor gained_exp(): Integer
+
+      attr_accessor consume_amount(): Integer
+
+      def self.new: (?id: Integer, ?user_id: Integer, ?item_id: Integer, ?item_type: Integer, ?amount: Integer, ?created_at: Integer, ?updated_at: Integer, ?gained_exp: Integer, ?consume_amount: Integer) -> instance
+                  | ({ ?id: Integer, ?user_id: Integer, ?item_id: Integer, ?item_type: Integer, ?amount: Integer, ?created_at: Integer, ?updated_at: Integer, ?gained_exp: Integer, ?consume_amount: Integer }) -> instance
+    end
+
+    class TargetUserCardData < Struct[untyped]
+      attr_accessor id(): Integer
+
+      attr_accessor user_id(): Integer
+
+      attr_accessor card_id(): Integer
+
+      attr_accessor amount_per_sec(): Integer
+
+      attr_accessor level(): Integer
+
+      attr_accessor total_exp(): Integer
+
+      attr_accessor base_amount_per_sec(): Integer
+
+      attr_accessor max_level(): Integer
+
+      attr_accessor max_amount_per_sec(): Integer
+
+      attr_accessor base_exp_per_level(): Integer
+
+      def self.new: (?id: Integer, ?user_id: Integer, ?card_id: Integer, ?amount_per_sec: Integer, ?level: Integer, ?total_exp: Integer, ?base_amount_per_sec: Integer, ?max_level: Integer, ?max_amount_per_sec: Integer, ?base_exp_per_level: Integer) -> instance
+                  | ({ ?id: Integer, ?user_id: Integer, ?card_id: Integer, ?amount_per_sec: Integer, ?level: Integer, ?total_exp: Integer, ?base_amount_per_sec: Integer, ?max_level: Integer, ?max_amount_per_sec: Integer, ?base_exp_per_level: Integer }) -> instance
+    end
+  end
+
+  class UpdatedResources < Struct[untyped]
+    attr_accessor now(): Integer
+
+    attr_accessor user(): User?
+
+    attr_accessor user_device(): UserDevice?
+
+    attr_accessor user_cards(): Array[UserCard]?
+
+    attr_accessor user_decks(): Array[UserDeck]?
+
+    attr_accessor user_items(): Array[UserItem]?
+
+    attr_accessor user_login_bonuses(): Array[UserLoginBonus]?
+
+    attr_accessor user_presents(): Array[UserPresent]?
+
+    def self.new: (?Integer now, ?User? user, ?UserDevice? user_device, ?Array[UserCard]? user_cards, ?Array[UserDeck]? user_decks, ?Array[UserItem]? user_items, ?Array[UserLoginBonus]? user_login_bonuses, ?Array[UserPresent]? user_presents) -> instance
+                | (?now: Integer, ?user: User?, ?user_device: UserDevice?, ?user_cards: Array[UserCard]?, ?user_decks: Array[UserDeck]?, ?user_items: Array[UserItem]?, ?user_login_bonuses: Array[UserLoginBonus]?, ?user_presents: Array[UserPresent]?) -> instance
+  end
+
+  class UpdatedResources
+    def as_json: () -> untyped
+  end
+
+  class User < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor isu_coin(): Integer
+
+    attr_accessor last_getreward_at(): Integer
+
+    attr_accessor last_activated_at(): Integer
+
+    attr_accessor registered_at(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?isu_coin: Integer, ?last_getreward_at: Integer, ?last_activated_at: Integer, ?registered_at: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?isu_coin: Integer, ?last_getreward_at: Integer, ?last_activated_at: Integer, ?registered_at: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class User
+    def as_json: () -> untyped
+  end
+
+  class UserDevice < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor platform_id(): String
+
+    attr_accessor platform_type(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?platform_id: String, ?platform_type: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?platform_id: String, ?platform_type: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserDevice
+    def as_json: () -> untyped
+  end
+
+  class UserBan < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserCard < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor card_id(): Integer
+
+    attr_accessor amount_per_sec(): Integer
+
+    attr_accessor level(): Integer
+
+    attr_accessor total_exp(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?card_id: Integer, ?amount_per_sec: Integer, ?level: Integer, ?total_exp: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?card_id: Integer, ?amount_per_sec: Integer, ?level: Integer, ?total_exp: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserCard
+    def as_json: () -> untyped
+  end
+
+  class UserDeck < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor user_card_id_1(): Integer
+
+    attr_accessor user_card_id_2(): Integer
+
+    attr_accessor user_card_id_3(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?user_card_id_1: Integer, ?user_card_id_2: Integer, ?user_card_id_3: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?user_card_id_1: Integer, ?user_card_id_2: Integer, ?user_card_id_3: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserDeck
+    def as_json: () -> untyped
+  end
+
+  class UserItem < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor item_type(): Integer
+
+    attr_accessor item_id(): Integer
+
+    attr_accessor amount(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserItem
+    def as_json: () -> untyped
+  end
+
+  class UserLoginBonus < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor login_bonus_id(): Integer
+
+    attr_accessor last_reward_sequence(): Integer
+
+    attr_accessor loop_count(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?login_bonus_id: Integer, ?last_reward_sequence: Integer, ?loop_count: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?login_bonus_id: Integer, ?last_reward_sequence: Integer, ?loop_count: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserLoginBonus
+    def as_json: () -> untyped
+  end
+
+  class UserPresent < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor sent_at(): Integer
+
+    attr_accessor item_type(): Integer
+
+    attr_accessor item_id(): Integer
+
+    attr_accessor amount(): Integer
+
+    attr_accessor present_message(): String?
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?sent_at: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?present_message: String?, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?sent_at: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?present_message: String?, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserPresent
+    def as_json: () -> untyped
+  end
+
+  class UserPresentAllReceivedHistory < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor present_all_id(): Integer
+
+    attr_accessor received_at(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?present_all_id: Integer, ?received_at: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?present_all_id: Integer, ?received_at: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserPresentAllReceivedHistory
+    def as_json: () -> untyped
+  end
+
+  class Session < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor session_id(): String
+
+    attr_accessor expired_at(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?session_id: String, ?expired_at: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?session_id: String, ?expired_at: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class Session
+    def as_json: () -> untyped
+  end
+
+  class UserOneTimeToken < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor user_id(): Integer
+
+    attr_accessor token(): String
+
+    attr_accessor token_type(): Integer
+
+    attr_accessor expired_at(): Integer
+
+    attr_accessor created_at(): Integer
+
+    attr_accessor updated_at(): Integer
+
+    attr_accessor deleted_at(): Integer?
+
+    def self.new: (?id: Integer, ?user_id: Integer, ?token: String, ?token_type: Integer, ?expired_at: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer?) -> instance
+                | ({ ?id: Integer, ?user_id: Integer, ?token: String, ?token_type: Integer, ?expired_at: Integer, ?created_at: Integer, ?updated_at: Integer, ?deleted_at: Integer? }) -> instance
+  end
+
+  class UserOneTimeToken
+    def as_json: () -> untyped
+  end
+
+  class GachaMaster < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor name(): String
+
+    attr_accessor start_at(): Integer
+
+    attr_accessor end_at(): Integer
+
+    attr_accessor display_order(): Integer?
+
+    attr_accessor created_at(): Integer
+
+    def self.new: (?id: Integer, ?name: String, ?start_at: Integer, ?end_at: Integer, ?display_order: Integer?, ?created_at: Integer) -> instance
+                | ({ ?id: Integer, ?name: String, ?start_at: Integer, ?end_at: Integer, ?display_order: Integer?, ?created_at: Integer }) -> instance
+  end
+
+  class GachaMaster
+    def as_json: () -> untyped
+  end
+
+  class GachaItemMaster < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor gacha_id(): Integer
+
+    attr_accessor item_type(): Integer
+
+    attr_accessor item_id(): Integer
+
+    attr_accessor amount(): Integer
+
+    attr_accessor weight(): Integer
+
+    attr_accessor created_at(): Integer
+
+    def self.new: (?id: Integer, ?gacha_id: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?weight: Integer, ?created_at: Integer) -> instance
+                | ({ ?id: Integer, ?gacha_id: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?weight: Integer, ?created_at: Integer }) -> instance
+  end
+
+  class GachaItemMaster
+    def as_json: () -> untyped
+  end
+
+  class ItemMaster < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor item_type(): Integer
+
+    attr_accessor name(): String
+
+    attr_accessor description(): String?
+
+    attr_accessor amount_per_sec(): Integer?
+
+    attr_accessor max_level(): Integer?
+
+    attr_accessor max_amount_per_sec(): Integer?
+
+    attr_accessor base_exp_per_level(): Integer?
+
+    attr_accessor gained_exp(): Integer?
+
+    attr_accessor shortening_min(): Integer?
+
+    def self.new: (?id: Integer, ?item_type: Integer, ?name: String, ?description: String?, ?amount_per_sec: Integer?, ?max_level: Integer?, ?max_amount_per_sec: Integer?, ?base_exp_per_level: Integer?, ?gained_exp: Integer?, ?shortening_min: Integer?) -> instance
+                | ({ ?id: Integer, ?item_type: Integer, ?name: String, ?description: String?, ?amount_per_sec: Integer?, ?max_level: Integer?, ?max_amount_per_sec: Integer?, ?base_exp_per_level: Integer?, ?gained_exp: Integer?, ?shortening_min: Integer? }) -> instance
+  end
+
+  class ItemMaster
+    def as_json: () -> untyped
+  end
+
+  class LoginBonusMaster < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor start_at(): Integer
+
+    attr_accessor end_at(): Integer?
+
+    attr_accessor column_count(): Integer
+
+    attr_accessor looped(): bool
+
+    attr_accessor created_at(): Integer
+
+    def self.new: (?id: Integer, ?start_at: Integer, ?end_at: Integer?, ?column_count: Integer, ?looped: bool, ?created_at: Integer) -> instance
+                | ({ ?id: Integer, ?start_at: Integer, ?end_at: Integer?, ?column_count: Integer, ?looped: bool, ?created_at: Integer }) -> instance
+  end
+
+  class LoginBonusMaster
+    def as_json: () -> untyped
+  end
+
+  class LoginBonusRewardMaster < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor login_bonus_id(): Integer
+
+    attr_accessor reward_sequence(): Integer
+
+    attr_accessor item_type(): Integer
+
+    attr_accessor item_id(): Integer
+
+    attr_accessor amount(): Integer
+
+    attr_accessor created_at(): Integer
+
+    def self.new: (?id: Integer, ?login_bonus_id: Integer, ?reward_sequence: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?created_at: Integer) -> instance
+                | ({ ?id: Integer, ?login_bonus_id: Integer, ?reward_sequence: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?created_at: Integer }) -> instance
+  end
+
+  class LoginBonusRewardMaster
+    def as_json: () -> untyped
+  end
+
+  class PresentAllMaster < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor registered_start_at(): Integer
+
+    attr_accessor registered_end_at(): Integer
+
+    attr_accessor item_type(): Integer
+
+    attr_accessor item_id(): Integer
+
+    attr_accessor amount(): Integer
+
+    attr_accessor present_message(): String?
+
+    attr_accessor created_at(): Integer
+
+    def self.new: (?id: Integer, ?registered_start_at: Integer, ?registered_end_at: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?present_message: String?, ?created_at: Integer) -> instance
+                | ({ ?id: Integer, ?registered_start_at: Integer, ?registered_end_at: Integer, ?item_type: Integer, ?item_id: Integer, ?amount: Integer, ?present_message: String?, ?created_at: Integer }) -> instance
+  end
+
+  class PresentAllMaster
+    def as_json: () -> untyped
+  end
+
+  class VersionMaster < Struct[untyped]
+    attr_accessor id(): Integer
+
+    attr_accessor status(): Integer
+
+    attr_accessor master_version(): String
+
+    def self.new: (?id: Integer, ?status: Integer, ?master_version: String) -> instance
+                | ({ ?id: Integer, ?status: Integer, ?master_version: String }) -> instance
+  end
+
+  class VersionMaster
+    def as_json: () -> untyped
+  end
+end

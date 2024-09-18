@@ -1,0 +1,9 @@
+module Mysql2
+  class Client[ResultType]
+    MULTI_STATEMENTS: Integer
+  end
+end
+
+class Open3
+  def self.capture2e: (*String, ?stdin_data: String, ?binmode: boolish) -> [String, Process::Status]
+end

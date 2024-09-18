@@ -1,0 +1,11 @@
+# Generated from admin.rb with RBS::Inline
+
+module Isuconquest
+  module Admin
+    def self.registered: (untyped app) -> untyped
+
+    def verify_password: (untyped hash, untyped pw) -> untyped
+
+    def read_form_file_to_csv: (untyped name) -> untyped
+  end
+end

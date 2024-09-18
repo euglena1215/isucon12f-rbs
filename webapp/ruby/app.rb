@@ -12,10 +12,18 @@ require 'sinatra/json'
 
 require_relative './admin'
 
+# @rbs generic unchecked out Elem
+module Enumerable
+  def first! #: Elem
+    first || raise('empty')
+  end
+end
+
 module Isuconquest
 
   class HttpError < StandardError
-    attr_reader :code
+    # @dynamic code
+    attr_reader :code #: Integer
 
     def initialize(code, message)
       super(message)
@@ -40,13 +48,17 @@ module Isuconquest
       JSON.dump(status_code: e.code, message: e.message)
     end
 
+    # @rbs @json_params: Hash[Symbol, untyped]
+
     helpers do
+      # @rbs () -> Hash[Symbol, untyped]
       def json_params
         @json_params ||= JSON.parse(request.body.tap(&:rewind).read, symbolize_names: true)
       rescue JSON::ParserError => e
         raise HttpError.new(400, e.inspect)
       end
 
+      # @rbs (?bool) -> Mysql2::Client[Mysql2::ResultAsHash]
       def connect_db(batch = false)
         Mysql2::Client.new(
           host: ENV.fetch('ISUCON_DB_HOST', '127.0.0.1'),
@@ -62,10 +74,12 @@ module Isuconquest
         )
       end
 
+      # @rbs () -> Mysql2::Client[Mysql2::ResultAsHash]
       def db
         Thread.current[:db] ||= connect_db()
       end
 
+      # @rbs [T] () { () -> T } -> T
       def db_transaction(&block)
         db.query('BEGIN')
         done = false
@@ -78,12 +92,15 @@ module Isuconquest
         db.query('ROLLBACK') unless done
       end
 
+      # @rbs (String, Integer, Integer) -> void
       def check_one_time_token!(token, token_type, request_at)
         query = 'SELECT * FROM user_one_time_tokens WHERE token=? AND token_type=? AND deleted_at IS NULL'
         tk = db.xquery(query, token, token_type).first
         raise HttpError.new(400, 'invalid token') unless tk
 
-        if tk.fetch(:expired_at) < request_at
+        expired_at = tk.fetch(:expired_at)
+        raise if expired_at.nil?
+        if expired_at < request_at
           query = 'UPDATE user_one_time_tokens SET deleted_at=? WHERE token=?'
           db.xquery(query, request_at, token)
           raise HttpError.new(400, 'invalid token')
@@ -94,12 +111,14 @@ module Isuconquest
         db.xquery(query, request_at, token)
       end
 
+      # @rbs (Integer, String) -> void
       def check_viewer_id!(user_id, viewer_id)
         query = 'SELECT * FROM user_devices WHERE user_id=? AND platform_id=?'
         device = db.xquery(query, user_id, viewer_id).first
         raise HttpError.new(404, 'not found user device') unless device
       end
 
+      # @rbs (Integer) -> bool
       def check_ban?(user_id)
         query = 'SELECT * FROM user_bans WHERE user_id=?'
         ban_user = db.xquery(query, user_id).first
@@ -107,16 +126,21 @@ module Isuconquest
         true
       end
 
+      # @rbs () -> Integer
       def get_request_time
+        # TODO: request が untyped になっているので改善したい
         request.env.fetch('isuconquest.request_time')
       rescue KeyError
         raise HttpError.new(500, 'failed to get request time')
       end
 
       # ログイン処理
+      # @rbs (Integer, Integer) -> [User, Array[UserLoginBonus], Array[UserPresent]]
       def login_process(user_id, request_at)
         query = 'SELECT * FROM users WHERE id=?'
-        user = db.xquery(query, user_id).first&.then { User.new(_1) }
+        user = db.xquery(query, user_id).first&.then do
+          User.new(_1) # steep:ignore
+        end
         raise HttpError.new(404, 'not found user') unless user
 
         # ログインボーナス処理
@@ -139,26 +163,31 @@ module Isuconquest
       end
 
       # ログイン処理が終わっているか
+      # @rbs (Integer, Integer) -> bool
       def complete_today_login?(last_activated_at_unixtime, request_at_unixtime)
         last_activated_at = Time.at(last_activated_at_unixtime, in: "+09:00")
         request_at = Time.at(request_at_unixtime, in: "+09:00")
-        last_activated_at.year == request_at.year && 
-          last_activated_at.month == request_at.month && 
+        last_activated_at.year == request_at.year &&
+          last_activated_at.month == request_at.month &&
           last_activated_at.day == request_at.day
       end
 
+      # @rbs (Integer, Integer) -> Array[UserLoginBonus]
       def obtain_login_bonus(user_id, request_at)
         # login bonus masterから有効なログインボーナスを取得
         query = 'SELECT * FROM login_bonus_masters WHERE start_at <= ? AND end_at >= ?'
         login_bonuses = db.xquery(query, request_at, request_at)
 
+        # @type var send_login_bonuses: Array[UserLoginBonus]
         send_login_bonuses = []
 
         login_bonuses.each do |bonus|
           init_bonus = false
           # ボーナスの進捗取得
           query = 'SELECT * FROM user_login_bonuses WHERE user_id=? AND login_bonus_id=?'
-          user_bonus = db.xquery(query, user_id, bonus.fetch(:id)).first&.then { UserLoginBonus.new(_1) }
+          user_bonus = db.xquery(query, user_id, bonus.fetch(:id)).first&.then do
+            UserLoginBonus.new(_1) # steep:ignore
+          end
           unless user_bonus
             init_bonus = true
 
@@ -211,11 +240,13 @@ module Isuconquest
       end
 
       # プレゼント付与処理
+      # @rbs (Integer, Integer) -> Array[UserPresent]
       def obtain_present(user_id, request_at)
         normal_presents = db.xquery('SELECT * FROM present_all_masters WHERE registered_start_at <= ? AND registered_end_at >= ?', request_at, request_at)
+        # @type var obtain_presents: Array[UserPresent]
         obtain_presents = []
         normal_presents.each do |normal_present_|
-          normal_present = PresentAllMaster.new(normal_present_)
+          normal_present = PresentAllMaster.new(normal_present_) # steep:ignore
 
           query = 'SELECT * FROM user_present_all_received_history WHERE user_id=? AND present_all_id=?'
           user_present_all_received_history = db.xquery(query, user_id, normal_present.id).first
@@ -265,9 +296,13 @@ module Isuconquest
       end
 
       # アイテム付与処理
+      # @rbs (Integer, Integer, Integer, Integer, Integer) -> [Array[Integer], Array[UserCard], Array[UserItem]]
       def obtain_item(user_id, item_id, item_type, obtain_amount, request_at)
+        # @type var obtain_coins: Array[Integer]
         obtain_coins = []
+        # @type var obtain_cards: Array[UserCard]
         obtain_cards = []
+        # @type var obtain_items: Array[UserItem]
         obtain_items = []
 
         case item_type
@@ -277,7 +312,9 @@ module Isuconquest
           raise HttpError.new(404, 'not found user') unless user
 
           query = 'UPDATE users SET isu_coin=? WHERE id=?'
-          total_coin = user.fetch(:isu_coin) + obtain_amount
+          isu_coin = user.fetch(:isu_coin)
+          raise unless isu_coin.is_a?(Integer)
+          total_coin = isu_coin + obtain_amount
           db.xquery(query, total_coin, user_id)
 
           obtain_coins.push(obtain_amount)
@@ -340,8 +377,10 @@ module Isuconquest
         [obtain_coins, obtain_cards, obtain_items]
       end
 
+      # @rbs () -> Integer
       def generate_id
         db = Thread.current[:generate_id_db] ||= connect_db
+        # @type var update_error: Mysql2::Error?
         update_error = nil
         100.times do
           begin
@@ -360,10 +399,12 @@ module Isuconquest
         raise "failed to generate id: #{update_error.inspect}"
       end
 
+      # @rbs () -> String
       def generate_uuid
         SecureRandom.uuid
       end
 
+      # @rbs () -> Integer
       def get_user_id
         Integer(params[:user_id], 10)
       rescue ArgumentError => e
@@ -660,7 +701,7 @@ module Isuconquest
       gacha_id = params[:gacha_id]
       raise HttpError.new(403, 'invalid gachaID') if !gacha_id.is_a?(String) || gacha_id.empty?
 
-      
+
       gacha_count = begin
         Integer(params[:n], 10)
       rescue ArgumentError => e
@@ -751,7 +792,7 @@ module Isuconquest
       rescue ArgumentError
         raise HttpError.new(400, 'invalid index number (n) parameter')
       end
-      if n == 0 
+      if n == 0
         raise HttpError.new(400, 'index number (n) should be more than or equal to 1')
       end
 
@@ -794,7 +835,7 @@ module Isuconquest
       # user_presentsに入っているが未取得のプレゼント取得
       query = 'SELECT * FROM user_presents WHERE id IN (?) AND deleted_at IS NULL'
       obtain_present = db.xquery(query, json_params[:presentIds]).map { UserPresent.new(_1) }
-      
+
       if obtain_present.empty?
         next json(
           updatedResources: UpdatedResources.new(request_at, nil, nil, nil, nil, nil, nil, []).as_json,
@@ -863,35 +904,36 @@ module Isuconquest
     end
 
     ConsumeUserItemData = Struct.new(
-      :id,
-      :user_id,
-      :item_id,
-      :item_type,
-      :amount,
-      :created_at,
-      :updated_at,
-      :gained_exp,
-      :consume_amount, # 消費量
+      :id, #: Integer
+      :user_id, #: Integer
+      :item_id, #: Integer
+      :item_type, #: Integer
+      :amount, #: Integer
+      :created_at, #: Integer
+      :updated_at, #: Integer
+      :gained_exp, #: Integer
+      # 消費量
+      :consume_amount, #: Integer
 
       keyword_init: true,
     )
 
     TargetUserCardData = Struct.new(
-      :id,
-      :user_id,
-      :card_id,
-      :amount_per_sec,
-      :level,
-      :total_exp,
+      :id, #: Integer
+      :user_id, #: Integer
+      :card_id, #: Integer
+      :amount_per_sec, #: Integer
+      :level, #: Integer
+      :total_exp, #: Integer
 
       # lv1のときの生産性
-      :base_amount_per_sec,
+      :base_amount_per_sec, #: Integer
       # 最高レベル
-      :max_level,
+      :max_level, #: Integer
       # lv maxのときの生産性
-      :max_amount_per_sec,
+      :max_amount_per_sec, #: Integer
       # lv1 -> lv2に上がるときのexp
-      :base_exp_per_level,
+      :base_exp_per_level, #: Integer
 
       keyword_init: true,
     )
@@ -1106,7 +1148,17 @@ module Isuconquest
     register Admin
   end
 
-  UpdatedResources = Struct.new(:now, :user, :user_device, :user_cards, :user_decks, :user_items, :user_login_bonuses, :user_presents) do
+  UpdatedResources = Struct.new(
+    :now, #: Integer
+    :user, #: User?
+    :user_device, #: UserDevice?
+    :user_cards, #: Array[UserCard]?
+    :user_decks, #: Array[UserDeck]?
+    :user_items, #: Array[UserItem]?
+    :user_login_bonuses, #: Array[UserLoginBonus]?
+    :user_presents #: Array[UserPresent]?
+  )
+  class UpdatedResources
     def as_json
       {
         now: now,
@@ -1125,7 +1177,18 @@ module Isuconquest
   ## ######################################
   ## entity
 
-  User = Struct.new(:id, :isu_coin, :last_getreward_at, :last_activated_at, :registered_at, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  User = Struct.new(
+    :id, #: Integer
+    :isu_coin, #: Integer
+    :last_getreward_at, #: Integer
+    :last_activated_at, #: Integer
+    :registered_at, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class User
     def as_json
       {
         id: id,
@@ -1141,7 +1204,17 @@ module Isuconquest
     end
   end
 
-  UserDevice = Struct.new(:id, :user_id, :platform_id, :platform_type, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  UserDevice = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :platform_id, #: String
+    :platform_type, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class UserDevice
     def as_json
       {
         id: id,
@@ -1156,9 +1229,28 @@ module Isuconquest
     end
   end
 
-  UserBan = Struct.new(:id, :user_id, :created_at, :updated_at, :deleted_at, keyword_init: true)
+  UserBan = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
 
-  UserCard = Struct.new(:id, :user_id, :card_id, :amount_per_sec, :level, :total_exp, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  UserCard = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :card_id, #: Integer
+    :amount_per_sec, #: Integer
+    :level, #: Integer
+    :total_exp, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class UserCard
     def as_json
       {
         id: id,
@@ -1175,7 +1267,18 @@ module Isuconquest
     end
   end
 
-  UserDeck = Struct.new(:id, :user_id, :user_card_id_1, :user_card_id_2, :user_card_id_3, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  UserDeck = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :user_card_id_1, #: Integer
+    :user_card_id_2, #: Integer
+    :user_card_id_3, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class UserDeck
     def as_json
       {
         id: id,
@@ -1191,7 +1294,18 @@ module Isuconquest
     end
   end
 
-  UserItem = Struct.new(:id, :user_id, :item_type, :item_id, :amount, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  UserItem = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :item_type, #: Integer
+    :item_id, #: Integer
+    :amount, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class UserItem
     def as_json
       {
         id: id,
@@ -1207,7 +1321,18 @@ module Isuconquest
     end
   end
 
-  UserLoginBonus = Struct.new(:id, :user_id, :login_bonus_id, :last_reward_sequence, :loop_count, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  UserLoginBonus = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :login_bonus_id, #: Integer
+    :last_reward_sequence, #: Integer
+    :loop_count, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class UserLoginBonus
     def as_json
       {
         id: id,
@@ -1223,7 +1348,20 @@ module Isuconquest
     end
   end
 
-  UserPresent = Struct.new(:id, :user_id, :sent_at, :item_type, :item_id, :amount, :present_message, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  UserPresent = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :sent_at, #: Integer
+    :item_type, #: Integer
+    :item_id, #: Integer
+    :amount, #: Integer
+    :present_message, #: String?
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class UserPresent
     def as_json
       {
         id: id,
@@ -1241,7 +1379,17 @@ module Isuconquest
     end
   end
 
-  UserPresentAllReceivedHistory = Struct.new(:id, :user_id, :present_all_id, :received_at, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  UserPresentAllReceivedHistory = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :present_all_id, #: Integer
+    :received_at, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class UserPresentAllReceivedHistory
     def as_json
       {
         id: id,
@@ -1256,7 +1404,17 @@ module Isuconquest
     end
   end
 
-  Session = Struct.new(:id, :user_id, :session_id, :expired_at, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  Session = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :session_id, #: String
+    :expired_at, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class Session
     def as_json
       {
         id: id,
@@ -1271,7 +1429,18 @@ module Isuconquest
     end
   end
 
-  UserOneTimeToken = Struct.new(:id, :user_id, :token, :token_type, :expired_at, :created_at, :updated_at, :deleted_at, keyword_init: true) do
+  UserOneTimeToken = Struct.new(
+    :id, #: Integer
+    :user_id, #: Integer
+    :token, #: String
+    :token_type, #: Integer
+    :expired_at, #: Integer
+    :created_at, #: Integer
+    :updated_at, #: Integer
+    :deleted_at, #: Integer?
+    keyword_init: true
+  )
+  class UserOneTimeToken
     def as_json
       {
         id: id,
@@ -1290,7 +1459,16 @@ module Isuconquest
   ## ######################################
   ## master
 
-  GachaMaster = Struct.new(:id, :name, :start_at, :end_at, :display_order, :created_at, keyword_init: true) do
+  GachaMaster = Struct.new(
+    :id, #: Integer
+    :name, #: String
+    :start_at, #: Integer
+    :end_at, #: Integer
+    :display_order, #: Integer?
+    :created_at, #: Integer
+    keyword_init: true
+  )
+  class GachaMaster
     def as_json
       {
         id: id,
@@ -1303,7 +1481,17 @@ module Isuconquest
     end
   end
 
-  GachaItemMaster = Struct.new(:id, :gacha_id, :item_type, :item_id, :amount, :weight, :created_at, keyword_init: true) do
+  GachaItemMaster = Struct.new(
+    :id, #: Integer
+    :gacha_id, #: Integer
+    :item_type, #: Integer
+    :item_id, #: Integer
+    :amount, #: Integer
+    :weight, #: Integer
+    :created_at, #: Integer
+    keyword_init: true
+  )
+  class GachaItemMaster
     def as_json
       {
         id: id,
@@ -1317,7 +1505,20 @@ module Isuconquest
     end
   end
 
-  ItemMaster = Struct.new(:id, :item_type, :name, :description, :amount_per_sec, :max_level, :max_amount_per_sec, :base_exp_per_level, :gained_exp, :shortening_min, keyword_init: true) do
+  ItemMaster = Struct.new(
+    :id, #: Integer
+    :item_type, #: Integer
+    :name, #: String
+    :description, #: String?
+    :amount_per_sec, #: Integer?
+    :max_level, #: Integer?
+    :max_amount_per_sec, #: Integer?
+    :base_exp_per_level, #: Integer?
+    :gained_exp, #: Integer?
+    :shortening_min, #: Integer?
+    keyword_init: true
+  )
+  class ItemMaster
     def as_json
       {
         id: id,
@@ -1334,7 +1535,16 @@ module Isuconquest
     end
   end
 
-  LoginBonusMaster = Struct.new(:id, :start_at, :end_at, :column_count, :looped, :created_at, keyword_init: true) do
+  LoginBonusMaster = Struct.new(
+    :id, #: Integer
+    :start_at, #: Integer
+    :end_at, #: Integer?
+    :column_count, #: Integer
+    :looped, #: bool
+    :created_at, #: Integer
+    keyword_init: true
+  )
+  class LoginBonusMaster
     def as_json
       {
         id: id,
@@ -1347,7 +1557,17 @@ module Isuconquest
     end
   end
 
-  LoginBonusRewardMaster = Struct.new(:id, :login_bonus_id, :reward_sequence, :item_type, :item_id, :amount, :created_at, keyword_init: true) do
+  LoginBonusRewardMaster = Struct.new(
+    :id, #: Integer
+    :login_bonus_id, #: Integer
+    :reward_sequence, #: Integer
+    :item_type, #: Integer
+    :item_id, #: Integer
+    :amount, #: Integer
+    :created_at, #: Integer
+    keyword_init: true
+  )
+  class LoginBonusRewardMaster
     def as_json
       {
         id: id,
@@ -1361,7 +1581,18 @@ module Isuconquest
     end
   end
 
-  PresentAllMaster = Struct.new(:id, :registered_start_at, :registered_end_at, :item_type, :item_id, :amount, :present_message, :created_at, keyword_init: true) do
+  PresentAllMaster = Struct.new(
+    :id, #: Integer
+    :registered_start_at, #: Integer
+    :registered_end_at, #: Integer
+    :item_type, #: Integer
+    :item_id, #: Integer
+    :amount, #: Integer
+    :present_message, #: String?
+    :created_at, #: Integer
+    keyword_init: true
+  )
+  class PresentAllMaster
     def as_json
       {
         id: id,
@@ -1376,7 +1607,13 @@ module Isuconquest
     end
   end
 
-  VersionMaster = Struct.new(:id, :status, :master_version, keyword_init: true) do
+  VersionMaster = Struct.new(
+    :id, #: Integer
+    :status, #: Integer
+    :master_version, #: String
+    keyword_init: true
+  )
+  class VersionMaster
     def as_json
       {
         id: id,
@@ -1386,3 +1623,241 @@ module Isuconquest
     end
   end
 end
+
+# CREATE TABLE `users` (
+#   `id` bigint NOT NULL,
+#   `isu_coin` bigint NOT NULL default 0 comment '所持ISU-COIN',
+#   `last_getreward_at` bigint NOT NULL comment '最後にリワードを取得した日時',
+#   `last_activated_at` bigint NOT NULL comment '最終アクティブ日時',
+#   `registered_at` bigint NOT NULL comment '登録日時',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `user_decks` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL comment 'ユーザID',
+#   `user_card_id_1` bigint NOT NULL comment '装備枠1',
+#   `user_card_id_2` bigint NOT NULL comment '装備枠2',
+#   `user_card_id_3` bigint NOT NULL comment '装備枠3',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`),
+#   UNIQUE uniq_user_id ( `user_id`,  `deleted_at`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `user_bans` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL comment 'ユーザID',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`),
+#   UNIQUE uniq_user_id (`user_id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `user_devices` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL comment 'ユーザID',
+#   `platform_id` varchar(255) NOT NULL comment 'プラットフォームのviewer_id',
+#   `platform_type` int(1) NOT NULL comment 'PC:1,iOS:2,Android:3',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY(`id`),
+#   UNIQUE uniq_user_id ( `user_id`, `platform_type`, `deleted_at`),
+#   UNIQUE uniq_platform_id (`platform_id`, `platform_type`, `deleted_at`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+
+# /* ログインボーナスマスタ */
+
+# CREATE TABLE `login_bonus_masters` (
+#   `id` bigint NOT NULL,
+#   `start_at` bigint NOT NULL comment '開始日時',
+#   `end_at` bigint comment '終了日時。Nullの場合、終了しない。',
+#   `column_count` int(2) NOT NULL comment '何日分用意するかの日数。例:7日のスタートダッシュ、20日の通常ログイン',
+#   `looped` boolean NOT NULL comment 'ループするかどうか',
+#   `created_at` bigint NOT NULL,
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `login_bonus_reward_masters` (
+#   `id` bigint NOT NULL,
+#   `login_bonus_id` bigint NOT NULL comment 'ログインボーナスID',
+#   `reward_sequence` int(2) NOT NULL comment '何日目の報酬か',
+#   `item_type` int(1) NOT NULL comment '付与するアイテム種別',
+#   `item_id` int NOT NULL comment '付与するアイテムID',
+#   `amount` bigint NOT NULL comment '個数',
+#   `created_at` bigint NOT NULL,
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `user_login_bonuses` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL comment 'ユーザID',
+#   `login_bonus_id` int NOT NULL comment 'ログインボーナスID',
+#   `last_reward_sequence` int NOT NULL comment '最終受け取り報酬番号',
+#   `loop_count` int NOT NULL comment 'ループ回数',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`),
+#   UNIQUE uniq_user_id (`user_id`, `login_bonus_id`, `deleted_at`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# /*  全員プレゼントマスタ */
+
+# CREATE TABLE `present_all_masters` (
+#   `id` bigint NOT NULL,
+#   `registered_start_at` bigint NOT NULL comment '配布対象のユーザの登録日時の起点日。この日付以降のユーザが対象',
+#   `registered_end_at` bigint NOT NULL  comment '配布対象のユーザの登録日時の終点日。この日付以前のユーザが対象',
+#   `item_type` int(1) NOT NULL comment 'アイテム種別',
+#   `item_id` int NOT NULL comment 'アイテムID',
+#   `amount` int NOT NULL comment 'アイテム数',
+#   `present_message` varchar(255) comment 'プレゼント(お詫び)メッセージ',
+#   `created_at` bigint NOT NULL,
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# /* 全員プレゼント履歴テーブル */
+
+# CREATE TABLE `user_present_all_received_history` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL comment '受けとったユーザID',
+#   `present_all_id` bigint NOT NULL comment '全員プレゼントマスタのID',
+#   `received_at` bigint NOT NULL comment '受け取った日時',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# /* ガチャマスタ */
+
+# CREATE TABLE `gacha_masters` (
+#   `id` bigint NOT NULL,
+#   `name` varchar(255) comment 'ガチャ名',
+#   `start_at` bigint NOT NULL comment '開始日時',
+#   `end_at` bigint NOT NULL comment '終了日時',
+#   `display_order` int(2) comment 'ガチャ台の表示順,小さいほど左に表示',
+#   `created_at` bigint NOT NULL,
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `gacha_item_masters` (
+#   `id` bigint NOT NULL,
+#   `gacha_id` bigint NOT NULL comment 'ガチャ台のID',
+#   `item_type` int(1) NOT NULL comment 'アイテム種別',
+#   `item_id` int NOT NULL comment 'アイテムID',
+#   `amount` int NOT NULL comment 'アイテム数',
+#   `weight` int NOT NULL comment '確率。万分率で表示',
+#   `created_at` bigint NOT NULL,
+#   PRIMARY KEY (`id`),
+#   UNIQUE uniq_item_id (`gacha_id`, `item_type`, `item_id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `user_items` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL comment 'ユーザID',
+#   `item_type` int(1) NOT NULL comment 'アイテム種別:1はusersテーブル、2はuser_cardsへ。3,4をこのテーブルへ保存',
+#   `item_id` int NOT NULL comment 'アイテムID',
+#   `amount` int NOT NULL comment 'アイテム数',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`),
+#   INDEX userid_idx (`user_id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `user_cards` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL comment 'ユーザID',
+#   `card_id` int NOT NULL comment '装備のID',
+#   `amount_per_sec` int NOT NULL comment '生産性（ISU/sec)',
+#   `level` int NOT NULL comment 'カードレベル',
+#   `total_exp` bigint NOT NULL comment '累計経験値',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`),
+#   UNIQUE uniq_card_id (`user_id`, `card_id`, `deleted_at`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# /*　アイテムマスタ、カードマスタ */
+
+# CREATE TABLE `item_masters` (
+#   `id` bigint NOT NULL,
+#   `item_type` int(2) NOT NULL comment '1:ISUCOIN、2:ハンマー（カード)、3:強化素材、4:時短アイテム（タイマー）',
+#   `name` varchar(128) NOT NULL comment 'アイテム名',
+#   `description` varchar(255) comment 'アイテム説明文',
+#   `amount_per_sec` int comment 'TYPE2:level1の時の生産性(ISU/sec)',
+#   `max_level` int comment 'TYPE2:生産性(ISU/sec)',
+#   `max_amount_per_sec` int comment 'TYPE2:level max時の生産性(ISU/sec)',
+#   `base_exp_per_level` int comment 'TYP2:level1 -> 2に必要な経験値、以降、前のlevelの1.2倍(切り上げ)必要',
+#   `gained_exp` int comment 'TYPE3:獲得経験値',
+#   `shortening_min` bigint comment 'TYPE4:短縮時間(分)',
+#   -- `created_at` bigint,
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+
+# /*　マスタバージョンを管理するテーブル */
+# CREATE TABLE `version_masters` (
+#   `id` bigint NOT NULL,
+#   `status` int(2) NOT NULL comment 'ステータス 1: available、2:not_available',
+#   `master_version` varchar(128) NOT NULL comment 'マスタバージョン',
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `user_sessions` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL,
+#   `session_id` varchar(128) NOT NULL,
+#   `created_at` bigint NOT NULL,
+#   `updated_at` bigint NOT NULL,
+#   `expired_at` bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`),
+#   UNIQUE uniq_session_id (`user_id`, `session_id`, `deleted_at`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# /* 更新処理について利用するone time tokenの管理 */
+# CREATE TABLE `user_one_time_tokens` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL,
+#   `token` varchar(128) NOT NULL,
+#   `token_type` int(2) NOT NULL comment '1:ガチャ用、2:カード強化用',
+#   `created_at` bigint NOT NULL,
+#   `updated_at` bigint NOT NULL,
+#   `expired_at` bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`),
+#   UNIQUE uniq_token (`user_id`, `token`, `deleted_at`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# /* 管理者権限のセッション管理 */
+# CREATE TABLE `admin_sessions` (
+#   `id` bigint NOT NULL,
+#   `user_id` bigint NOT NULL,
+#   `session_id` varchar(128) NOT NULL,
+#   `created_at` bigint NOT NULL,
+#   `updated_at` bigint NOT NULL,
+#   `expired_at` bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`),
+#   UNIQUE uniq_admin_session_id (`user_id`, `session_id`, `deleted_at`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+# CREATE TABLE `admin_users` (
+#   `id` bigint NOT NULL,
+#   `password` varchar(255) NOT NULL,
+#   `last_activated_at` bigint NOT NULL comment '最終アクティブ日時',
+#   `created_at` bigint NOT NULL,
+#   `updated_at`bigint NOT NULL,
+#   `deleted_at` bigint default NULL,
+#   PRIMARY KEY (`id`)
+# ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
