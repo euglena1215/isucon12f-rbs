@@ -1,0 +1,76 @@
+---
+path: ".gem_rbs_collection"
+gems:
+- name: bcrypt
+  version: '3.1'
+  source:
+    type: git
+    name: ruby/gem_rbs_collection
+    revision: f5ccba01753a601607c36f3eb1b5b213307300ab
+    remote: https://github.com/ruby/gem_rbs_collection.git
+    repo_dir: gems
+- name: cgi
+  version: '0'
+  source:
+    type: stdlib
+- name: io-console
+  version: '0'
+  source:
+    type: stdlib
+- name: mysql2
+  version: '0.5'
+  source:
+    type: git
+    name: ruby/gem_rbs_collection
+    revision: f5ccba01753a601607c36f3eb1b5b213307300ab
+    remote: https://github.com/ruby/gem_rbs_collection.git
+    repo_dir: gems
+- name: mysql2-cs-bind
+  version: '0.1'
+  source:
+    type: git
+    name: ruby/gem_rbs_collection
+    revision: f5ccba01753a601607c36f3eb1b5b213307300ab
+    remote: https://github.com/ruby/gem_rbs_collection.git
+    repo_dir: gems
+- name: openssl
+  version: '0'
+  source:
+    type: stdlib
+- name: rack
+  version: '2.2'
+  source:
+    type: git
+    name: ruby/gem_rbs_collection
+    revision: f5ccba01753a601607c36f3eb1b5b213307300ab
+    remote: https://github.com/ruby/gem_rbs_collection.git
+    repo_dir: gems
+- name: sinatra
+  version: '4.0'
+  source:
+    type: git
+    name: ruby/gem_rbs_collection
+    revision: f5ccba01753a601607c36f3eb1b5b213307300ab
+    remote: https://github.com/ruby/gem_rbs_collection.git
+    repo_dir: gems
+- name: sinatra-contrib
+  version: '4.0'
+  source:
+    type: git
+    name: ruby/gem_rbs_collection
+    revision: f5ccba01753a601607c36f3eb1b5b213307300ab
+    remote: https://github.com/ruby/gem_rbs_collection.git
+    repo_dir: gems
+- name: socket
+  version: '0'
+  source:
+    type: stdlib
+- name: tempfile
+  version: '0'
+  source:
+    type: stdlib
+- name: uri
+  version: '0'
+  source:
+    type: stdlib
+gemfile_lock_path: Gemfile.lock
