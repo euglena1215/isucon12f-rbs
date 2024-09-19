@@ -145,7 +145,8 @@ module Isuconquest
   end
 
   class UpdatedResources
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class User < Struct[untyped]
@@ -170,7 +171,8 @@ module Isuconquest
   end
 
   class User
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class UserDevice < Struct[untyped]
@@ -193,7 +195,8 @@ module Isuconquest
   end
 
   class UserDevice
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class UserBan < Struct[untyped]
@@ -235,7 +238,8 @@ module Isuconquest
   end
 
   class UserCard
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class UserDeck < Struct[untyped]
@@ -260,7 +264,8 @@ module Isuconquest
   end
 
   class UserDeck
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class UserItem < Struct[untyped]
@@ -285,7 +290,8 @@ module Isuconquest
   end
 
   class UserItem
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class UserLoginBonus < Struct[untyped]
@@ -310,7 +316,8 @@ module Isuconquest
   end
 
   class UserLoginBonus
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class UserPresent < Struct[untyped]
@@ -339,7 +346,8 @@ module Isuconquest
   end
 
   class UserPresent
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class UserPresentAllReceivedHistory < Struct[untyped]
@@ -362,7 +370,8 @@ module Isuconquest
   end
 
   class UserPresentAllReceivedHistory
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class Session < Struct[untyped]
@@ -385,7 +394,8 @@ module Isuconquest
   end
 
   class Session
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class UserOneTimeToken < Struct[untyped]
@@ -410,7 +420,8 @@ module Isuconquest
   end
 
   class UserOneTimeToken
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class GachaMaster < Struct[untyped]
@@ -431,7 +442,8 @@ module Isuconquest
   end
 
   class GachaMaster
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class GachaItemMaster < Struct[untyped]
@@ -454,7 +466,8 @@ module Isuconquest
   end
 
   class GachaItemMaster
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class ItemMaster < Struct[untyped]
@@ -483,7 +496,8 @@ module Isuconquest
   end
 
   class ItemMaster
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class LoginBonusMaster < Struct[untyped]
@@ -504,7 +518,8 @@ module Isuconquest
   end
 
   class LoginBonusMaster
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class LoginBonusRewardMaster < Struct[untyped]
@@ -527,7 +542,8 @@ module Isuconquest
   end
 
   class LoginBonusRewardMaster
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class PresentAllMaster < Struct[untyped]
@@ -552,7 +568,8 @@ module Isuconquest
   end
 
   class PresentAllMaster
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 
   class VersionMaster < Struct[untyped]
@@ -567,6 +584,7 @@ module Isuconquest
   end
 
   class VersionMaster
-    def as_json: () -> untyped
+    # @rbs () -> Hash[Symbol, untyped]
+    def as_json: () -> Hash[Symbol, untyped]
   end
 end

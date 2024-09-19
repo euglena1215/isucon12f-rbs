@@ -7,3 +7,9 @@ end
 class Open3
   def self.capture2e: (*String, ?stdin_data: String, ?binmode: boolish) -> [String, Process::Status]
 end
+
+module Sinatra
+  class Base
+    def self.before: (?untyped path, **untyped options) { () [self: instance] -> void } -> untyped | ...
+  end
+end

@@ -6,7 +6,7 @@ target :app do
   check "app.rb"
   check "admin.rb"
 
-  library "json", "securerandom"
+  library "json", "securerandom", "csv", "time"
 
   configure_code_diagnostics(D::Ruby.all_error)
 end

@@ -81,6 +81,7 @@ module Isuconquest
 
       # @rbs [T] () { () -> T } -> T
       def db_transaction(&block)
+        # @type var done: bool
         db.query('BEGIN')
         done = false
         retval = block.call
@@ -204,7 +205,9 @@ module Isuconquest
           end
 
           # ボーナス進捗更新
-          if user_bonus.last_reward_sequence < bonus.fetch(:column_count)
+          column_count = bonus.fetch(:column_count)
+          raise unless column_count.is_a?(Integer)
+          if user_bonus.last_reward_sequence < column_count
             user_bonus.last_reward_sequence += 1
           else
             if bonus.fetch(:looped)
@@ -347,7 +350,9 @@ module Isuconquest
 
           # 所持数取得
           query = 'SELECT * FROM user_items WHERE user_id=? AND item_id=?'
-          user_item = db.xquery(query, user_id, item.fetch(:id)).first&.then { UserItem.new(_1) }
+          user_item = db.xquery(query, user_id, item.fetch(:id)).first&.then {
+            UserItem.new(_1) # steep:ignore
+          }
           if user_item.nil? # 新規作成
             user_item_id = generate_id()
             user_item = UserItem.new(
@@ -591,7 +596,9 @@ module Isuconquest
       request_at = get_request_time()
 
       query = 'SELECT * FROM users WHERE id=?'
-      user = db.xquery(query, json_params[:userId]).first&.then { User.new(_1) }
+      user = db.xquery(query, json_params[:userId]).first&.then {
+        User.new(_1) # steep:ignore
+      }
       raise HttpError.new(404, 'not found user') unless user
 
       # check ban
@@ -661,6 +668,7 @@ module Isuconquest
       end
 
       # ガチャ排出アイテム取得
+      # @type var gacha_data_list: Array[{ gacha: Hash[Symbol, untyped], gachaItemList: Array[Hash[Symbol, untyped]] }]
       gacha_data_list = []
       query = 'SELECT * FROM gacha_item_masters WHERE gacha_id=? ORDER BY id ASC'
       gacha_master_list.each do |v|
@@ -668,8 +676,12 @@ module Isuconquest
         raise HttpError.new(404, 'not found gacha item') if gacha_item.empty?
 
         gacha_data_list.push(
-          gacha: GachaMaster.new(v).as_json,
-          gachaItemList: gacha_item.map { GachaItemMaster.new(_1).as_json },
+          gacha: GachaMaster.new(v) # steep:ignore
+                  .as_json,
+          gachaItemList: gacha_item.map {
+            GachaItemMaster.new(_1) # steep:ignore
+              .as_json
+          },
         )
       end
       # generate one time token
@@ -701,7 +713,6 @@ module Isuconquest
       gacha_id = params[:gacha_id]
       raise HttpError.new(403, 'invalid gachaID') if !gacha_id.is_a?(String) || gacha_id.empty?
 
-
       gacha_count = begin
         Integer(params[:n], 10)
       rescue ArgumentError => e
@@ -722,7 +733,9 @@ module Isuconquest
       query = 'SELECT * FROM users WHERE id=?'
       user = db.xquery(query, user_id).first
       raise HttpError.new(404, 'not found user') unless user
-      raise HttpError.new(409, 'not enough isucon') if user.fetch(:isu_coin) < consumed_coin
+      isu_coin = user.fetch(:isu_coin)
+      raise unless isu_coin.is_a?(Integer)
+      raise HttpError.new(409, 'not enough isucon') if isu_coin < consumed_coin
 
       # gachaIDからガチャマスタの取得
       query = 'SELECT * FROM gacha_masters WHERE id=? AND start_at <= ? AND end_at >= ?'
@@ -734,16 +747,19 @@ module Isuconquest
       raise HttpError.new(404, 'not found gacha item') if gacha_item_list.empty?
 
       # weightの合計値を算出
-      sum = db.xquery('SELECT SUM(weight) as sum FROM gacha_item_masters WHERE gacha_id=?', gacha_id).first.fetch(:sum)
-      raise HttpError.new(404, '') unless sum
+      sum = db.xquery('SELECT SUM(weight) as sum FROM gacha_item_masters WHERE gacha_id=?', gacha_id).first!.fetch(:sum) #: Integer
+      # raise HttpError.new(404, '') unless sum
 
       # random値の導出 & 抽選
+      # @type var result: Array[Hash[Symbol, untyped]]
       result = []
       gacha_count.times do
         random = rand(sum)
         boundary = 0
         gacha_item_list.each do |v|
-          boundary += v.fetch(:weight)
+          weight = v.fetch(:weight)
+          raise unless weight.is_a?(Integer)
+          boundary += weight
           if random < boundary
             result.push(v)
             break
@@ -753,6 +769,7 @@ module Isuconquest
 
       db_transaction do
         # 直付与 => プレゼントに入れる
+        # @type var presents: Array[UserPresent]
         presents = []
 
         result.each do |v|
@@ -776,7 +793,9 @@ module Isuconquest
 
         # isuconをへらす
         query = 'UPDATE users SET isu_coin=? WHERE id=?'
-        total_coin = user.fetch(:isu_coin) - consumed_coin
+        isu_coin2 = user.fetch(:isu_coin)
+        raise unless isu_coin2.is_a?(Integer)
+        total_coin = isu_coin - consumed_coin
         db.xquery(query, total_coin, user_id)
 
         json(
@@ -811,12 +830,16 @@ module Isuconquest
       EOF
       present_list = db.xquery(query, user_id).to_a
 
-      present_count = db.xquery('SELECT COUNT(*) as cnt FROM user_presents WHERE user_id = ? AND deleted_at IS NULL', user_id).first.fetch(:cnt)
+      present_count = db.xquery('SELECT COUNT(*) as cnt FROM user_presents WHERE user_id = ? AND deleted_at IS NULL', user_id).first!.fetch(:cnt)
+      raise unless present_count.is_a?(Integer)
 
       is_next = present_count > (offset + PRESENT_COUNT_PER_PAGE)
 
       json(
-        presents: present_list.map { UserPresent.new(_1).as_json },
+        presents: present_list.map {
+          UserPresent.new(_1) # steep:ignore
+            .as_json
+        },
         isNext: is_next,
       )
     end
@@ -834,7 +857,9 @@ module Isuconquest
 
       # user_presentsに入っているが未取得のプレゼント取得
       query = 'SELECT * FROM user_presents WHERE id IN (?) AND deleted_at IS NULL'
-      obtain_present = db.xquery(query, json_params[:presentIds]).map { UserPresent.new(_1) }
+      obtain_present = db.xquery(query, json_params[:presentIds]).map {
+        UserPresent.new(_1) # steep:ignore
+      }
 
       if obtain_present.empty?
         next json(
@@ -897,9 +922,16 @@ module Isuconquest
 
       json(
         oneTimeToken: token.token,
-        items: item_list.map { UserItem.new(_1).as_json },
-        user: User.new(user).as_json,
-        cards: card_list.map { UserCard.new(_1).as_json },
+        items: item_list.map {
+          UserItem.new(_1) # steep:ignore
+            .as_json
+        },
+        user: User.new(user) # steep:ignore
+                .as_json,
+        cards: card_list.map {
+          UserCard.new(_1) # steep:ignore
+            .as_json
+        },
       )
     end
 
@@ -961,7 +993,9 @@ module Isuconquest
         INNER JOIN item_masters as im ON uc.card_id = im.id
         WHERE uc.id = ? AND uc.user_id=?
       EOF
-      card = db.xquery(query, card_id, user_id).first&.then { TargetUserCardData.new(_1) }
+      card = db.xquery(query, card_id, user_id).first&.then {
+        TargetUserCardData.new(_1) # steep:ignore
+      }
       raise HttpError.new(404, '') unless card
 
       if card.level == card.max_level
@@ -969,6 +1003,7 @@ module Isuconquest
       end
 
       # 消費アイテムの所持チェック
+      # @type var items: Array[ConsumeUserItemData]
       items = []
       query = <<~EOF
         SELECT ui.id, ui.user_id, ui.item_id, ui.item_type, ui.amount, ui.created_at, ui.updated_at, im.gained_exp
@@ -977,7 +1012,9 @@ module Isuconquest
         WHERE ui.item_type = 3 AND ui.id=? AND ui.user_id=?
       EOF
       json_params[:items].each do |v|
-        item = db.xquery(query, v[:id], user_id).first&.then { ConsumeUserItemData.new(_1) }
+        item = db.xquery(query, v[:id], user_id).first&.then {
+          ConsumeUserItemData.new(_1) # steep:ignore
+        }
         raise HttpError.new(404, '') unless item
 
         raise HttpError.new(400, 'item not enough') if v[:amount] > item.amount
@@ -1014,7 +1051,9 @@ module Isuconquest
 
         # get response data
         query = 'SELECT * FROM user_cards WHERE id=?'
-        result_card = db.xquery(query, card.id).first&.then { UserCard.new(_1) }
+        result_card = db.xquery(query, card.id).first&.then {
+          UserCard.new(_1) # steep:ignore
+        }
         raise HttpError.new(404, 'not found card') unless result_card
         result_items = items.map do |v|
           UserItem.new(
@@ -1085,7 +1124,9 @@ module Isuconquest
 
       # 最後に取得した報酬時刻取得
       query = 'SELECT * FROM users WHERE id=?'
-      user = db.xquery(query, user_id).first&.then { User.new(_1) }
+      user = db.xquery(query, user_id).first&.then {
+        User.new(_1) # steep:ignore
+      }
       raise HttpError.new(404, 'not found user') unless user
 
       # 使っているデッキの取得
@@ -1099,7 +1140,12 @@ module Isuconquest
 
       # 経過時間*生産性のcoin (1椅子 = 1coin)
       past_time = request_at - user.last_getreward_at
-      get_coin = past_time * (cards[0].fetch(:amount_per_sec) + cards[1].fetch(:amount_per_sec) + cards[2].fetch(:amount_per_sec))
+      total_amount_per_sec = cards.map do |card|
+        amount_per_sec = card.fetch(:amount_per_sec)
+        raise unless amount_per_sec.is_a?(Integer)
+        amount_per_sec
+      end.sum #: Integer
+      get_coin = past_time * total_amount_per_sec
 
       # 報酬の保存(ゲームない通貨を保存)(users)
       user.isu_coin += get_coin
@@ -1120,19 +1166,27 @@ module Isuconquest
 
       # 装備情報
       query = 'SELECT * FROM user_decks WHERE user_id=? AND deleted_at IS NULL'
-      deck = db.xquery(query, user_id).first&.then { UserDeck.new(_1) }
+      deck = db.xquery(query, user_id).first&.then {
+        UserDeck.new(_1) # steep:ignore
+      }
+      raise if deck.nil?
 
       # 生産性
+      # @type var cards: Array[UserCard]
       cards = []
       if deck
         card_ids = [deck.user_card_id_1, deck.user_card_id_2, deck.user_card_id_3]
-        cards = db.xquery('SELECT * FROM user_cards WHERE id IN (?)', card_ids).map { UserCard.new(_1) }
+        cards = db.xquery('SELECT * FROM user_cards WHERE id IN (?)', card_ids).map {
+          UserCard.new(_1)  # steep:ignore
+        }
       end
       total_amount_per_sec = cards.sum(&:amount_per_sec)
 
       # 経過時間
       query = 'SELECT * FROM users WHERE id=?'
-      user = db.xquery(query, user_id).first&.then { User.new(_1) }
+      user = db.xquery(query, user_id).first&.then {
+        User.new(_1) # steep:ignore
+      }
       raise HttpError.new(404, 'not found user') unless user
       past_time = request_at - user.last_getreward_at
 
@@ -1159,10 +1213,12 @@ module Isuconquest
     :user_presents #: Array[UserPresent]?
   )
   class UpdatedResources
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         now: now,
       }.tap do |j|
+        # @type var j: Hash[Symbol, untyped]
         j[:user] = user.as_json if user
         j[:userDevice] = user_device.as_json if user_device
         j[:userCards] = user_cards.map(&:as_json) if user_cards && !user_cards.empty?
@@ -1189,6 +1245,7 @@ module Isuconquest
     keyword_init: true
   )
   class User
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1215,6 +1272,7 @@ module Isuconquest
     keyword_init: true
   )
   class UserDevice
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1251,6 +1309,7 @@ module Isuconquest
     keyword_init: true
   )
   class UserCard
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1279,6 +1338,7 @@ module Isuconquest
     keyword_init: true
   )
   class UserDeck
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1306,6 +1366,7 @@ module Isuconquest
     keyword_init: true
   )
   class UserItem
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1333,6 +1394,7 @@ module Isuconquest
     keyword_init: true
   )
   class UserLoginBonus
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1362,6 +1424,7 @@ module Isuconquest
     keyword_init: true
   )
   class UserPresent
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1390,6 +1453,7 @@ module Isuconquest
     keyword_init: true
   )
   class UserPresentAllReceivedHistory
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1415,6 +1479,7 @@ module Isuconquest
     keyword_init: true
   )
   class Session
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1441,6 +1506,7 @@ module Isuconquest
     keyword_init: true
   )
   class UserOneTimeToken
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1469,6 +1535,7 @@ module Isuconquest
     keyword_init: true
   )
   class GachaMaster
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1492,6 +1559,7 @@ module Isuconquest
     keyword_init: true
   )
   class GachaItemMaster
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1519,6 +1587,7 @@ module Isuconquest
     keyword_init: true
   )
   class ItemMaster
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1545,6 +1614,7 @@ module Isuconquest
     keyword_init: true
   )
   class LoginBonusMaster
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1568,6 +1638,7 @@ module Isuconquest
     keyword_init: true
   )
   class LoginBonusRewardMaster
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1593,6 +1664,7 @@ module Isuconquest
     keyword_init: true
   )
   class PresentAllMaster
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
@@ -1614,6 +1686,7 @@ module Isuconquest
     keyword_init: true
   )
   class VersionMaster
+    # @rbs () -> Hash[Symbol, untyped]
     def as_json
       {
         id: id,
