@@ -9,7 +9,17 @@ class Open3
 end
 
 module Sinatra
+  interface _Extension
+    def registered: (Sinatra::Base app) -> void
+  end
+
   class Base
     def self.before: (?untyped path, **untyped options) { () [self: instance] -> void } -> untyped | ...
+
+    def self.condition: (?::String name) { () [self: instance] -> void } -> void | ...
+
+    def self.register: (*_Extension extensions) ?{ () -> untyped } -> untyped | ...
+
+    attr_accessor request: Request
   end
 end

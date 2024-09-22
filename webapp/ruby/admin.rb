@@ -5,8 +5,10 @@ require 'bcrypt'
 
 module Isuconquest
   module Admin
+    # @rbs (singleton(Isuconquest::App) app) -> void
     def self.registered(app)
       app.set(:admin_check_session) do |_bool|
+        # @type self: singleton(Isuconquest::App)
         condition do
           sess_id = request.get_header('HTTP_X_SESSION')
           raise HttpError.new(401, 'unauthorized user') if sess_id.nil? || sess_id.empty?
@@ -17,7 +19,9 @@ module Isuconquest
 
           request_at = get_request_time()
 
-          if admin_session.fetch(:expired_at) < request_at
+          expired_at = admin_session.fetch(:expired_at)
+          raise unless expired_at.is_a?(Integer)
+          if expired_at < request_at
             query = 'UPDATE admin_session SET deleted_at=? WHERE session_id=?'
             db.xquery(query, request_at, sess_id)
             raise HttpError.new(401, 'session expired')
@@ -36,7 +40,9 @@ module Isuconquest
           raise HttpError.new(404, 'not found user') unless user
 
           # verify password
-          verify_password(user.fetch(:password), json_params[:password])
+          password = user.fetch(:password)
+          raise unless password.is_a?(String)
+          verify_password(password, json_params[:password])
 
           query = 'UPDATE admin_users SET last_activated_at=?, updated_at=? WHERE id=?'
           db.xquery(query, request_at, request_at, json_params[:userId])
@@ -80,13 +86,34 @@ module Isuconquest
 
       # admin_list_master マスタデータ閲覧
       app.get '/admin/master', admin_check_session: true do
-        master_versions = db.xquery('SELECT * FROM version_masters').to_a.map { VersionMaster.new(_1).as_json }
-        items = db.xquery('SELECT * FROM item_masters').to_a.map { ItemMaster.new(_1).as_json }
-        gachas = db.xquery('SELECT * FROM gacha_masters').to_a.map { GachaMaster.new(_1).as_json }
-        gacha_items = db.xquery('SELECT * FROM gacha_item_masters').to_a.map { GachaItemMaster.new(_1).as_json }
-        present_alls = db.xquery('SELECT * FROM present_all_masters').to_a.map { PresentAllMaster.new(_1).as_json }
-        login_bonuses = db.xquery('SELECT * FROM login_bonus_masters').to_a.map { LoginBonusMaster.new(_1).as_json }
-        login_bonus_rewards = db.xquery('SELECT * FROM login_bonus_reward_masters').to_a.map { LoginBonusRewardMaster.new(_1).as_json }
+        master_versions = db.xquery('SELECT * FROM version_masters').to_a.map {
+          VersionMaster.new(_1) # steep:ignore
+            .as_json
+        }
+        items = db.xquery('SELECT * FROM item_masters').to_a.map {
+          ItemMaster.new(_1) # steep:ignore
+            .as_json
+        }
+        gachas = db.xquery('SELECT * FROM gacha_masters').to_a.map {
+          GachaMaster.new(_1) # steep:ignore
+            .as_json
+        }
+        gacha_items = db.xquery('SELECT * FROM gacha_item_masters').to_a.map {
+          GachaItemMaster.new(_1) # steep:ignore
+            .as_json
+        }
+        present_alls = db.xquery('SELECT * FROM present_all_masters').to_a.map {
+          PresentAllMaster.new(_1) # steep:ignore
+            .as_json
+        }
+        login_bonuses = db.xquery('SELECT * FROM login_bonus_masters').to_a.map {
+          LoginBonusMaster.new(_1) # steep:ignore
+            .as_json
+        }
+        login_bonus_rewards = db.xquery('SELECT * FROM login_bonus_reward_masters').to_a.map {
+          LoginBonusRewardMaster.new(_1) # steep:ignore
+            .as_json
+        }
 
         json(
           versionMaster: master_versions,
@@ -125,7 +152,7 @@ module Isuconquest
           # gacha
           gacha_recs = read_form_file_to_csv(:gachaMaster)
           if gacha_recs
-            placeholders = item_master_recs.map { '(?, ?, ?, ?, ?, ?)' }.join(',')
+            placeholders = (item_master_recs || []).map { '(?, ?, ?, ?, ?, ?)' }.join(',')
             query = [
               'INSERT INTO gacha_masters(id, name, start_at, end_at, display_order, created_at)',
               "VALUES #{placeholders}",
@@ -183,7 +210,9 @@ module Isuconquest
             db.xquery(query, *login_bonus_reward_recs.flatten)
           end
 
-          active_master = db.query('SELECT * FROM version_masters WHERE status=1').first&.then { VersionMaster.new(_1) }
+          active_master = db.query('SELECT * FROM version_masters WHERE status=1').first&.then {
+            VersionMaster.new(_1) # steep:ignore
+          }
           raise HttpError.new(500, 'invalid active_master') unless active_master
           json(
             versionMaster: active_master.as_json,
@@ -196,29 +225,45 @@ module Isuconquest
         user_id = get_user_id()
 
         query = 'SELECT * FROM users WHERE id=?'
-        user = db.xquery(query, user_id).first&.then { User.new(_1) }
+        user = db.xquery(query, user_id).first&.then {
+          User.new(_1) # steep:ignore
+        }
         raise HttpError.new(404, 'not found user') unless user
 
         query = 'SELECT * FROM user_devices WHERE user_id=?'
-        devices = db.xquery(query, user_id).map { UserDevice.new(_1) }
+        devices = db.xquery(query, user_id).map {
+          UserDevice.new(_1) # steep:ignore
+        }
 
         query = 'SELECT * FROM user_cards WHERE user_id=?'
-        cards = db.xquery(query, user_id).map { UserCard.new(_1) }
+        cards = db.xquery(query, user_id).map {
+          UserCard.new(_1) # steep:ignore
+        }
 
         query = 'SELECT * FROM user_decks WHERE user_id=?'
-        decks = db.xquery(query, user_id).map { UserDeck.new(_1) }
+        decks = db.xquery(query, user_id).map {
+          UserDeck.new(_1) # steep:ignore
+        }
 
         query = 'SELECT * FROM user_items WHERE user_id=?'
-        items = db.xquery(query, user_id).map { UserItem.new(_1) }
+        items = db.xquery(query, user_id).map {
+          UserItem.new(_1) # steep:ignore
+        }
 
         query = 'SELECT * FROM user_login_bonuses WHERE user_id=?'
-        login_bonuses = db.xquery(query, user_id).map { UserLoginBonus.new(_1) }
+        login_bonuses = db.xquery(query, user_id).map {
+          UserLoginBonus.new(_1) # steep:ignore
+        }
 
         query = 'SELECT * FROM user_presents WHERE user_id=?'
-        presents = db.xquery(query, user_id).map { UserPresent.new(_1) }
+        presents = db.xquery(query, user_id).map {
+          UserPresent.new(_1) # steep:ignore
+        }
 
         query = 'SELECT * FROM user_present_all_received_history WHERE user_id=?'
-        present_history = db.xquery(query, user_id).map { UserPresentAllReceivedHistory.new(_1) }
+        present_history = db.xquery(query, user_id).map {
+          UserPresentAllReceivedHistory.new(_1) # steep:ignore
+        }
 
         json(
           user: user.as_json,
@@ -239,7 +284,9 @@ module Isuconquest
         request_at = get_request_time()
 
         query = 'SELECT * FROM users WHERE id=?'
-        user = db.xquery(query, user_id).first&.then { User.new(_1) }
+        user = db.xquery(query, user_id).first&.then {
+          User.new(_1) # steep:ignore
+        }
         raise HttpError.new(404, 'not found user') unless user
 
         ban_id = generate_id()
@@ -252,13 +299,16 @@ module Isuconquest
       end
 
       app.helpers do
+        # @rbs skip
         def verify_password(hash, pw)
           unless BCrypt::Password.new(hash) == pw
             raise HttpError.new(401, 'unauthorized user')
           end
         end
 
+        # @rbs skip
         def read_form_file_to_csv(name)
+          # @type self: Sinatra::Base
           file = params.dig(name, :tempfile)
           return nil unless file
           file.set_encoding(Encoding::UTF_8)
@@ -271,3 +321,9 @@ module Isuconquest
     end
   end
 end
+
+# @rbs!
+#   class Isuconquest::App
+#     def verify_password: (String, String) -> void
+#     def read_form_file_to_csv: (Symbol) -> Array[Array[String]]?
+#   end

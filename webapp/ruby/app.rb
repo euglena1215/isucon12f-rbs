@@ -225,7 +225,14 @@ module Isuconquest
           reward_item = db.xquery(query, bonus.fetch(:id), user_bonus.last_reward_sequence).first
           raise HttpError.new(404, 'not found login bonus reward') unless reward_item
 
-          obtain_item(user_id, reward_item.fetch(:item_id), reward_item.fetch(:item_type), reward_item.fetch(:amount), request_at)
+          item_id = reward_item.fetch(:item_id)
+          raise unless item_id.is_a?(Integer)
+          item_type = reward_item.fetch(:item_type)
+          raise unless item_type.is_a?(Integer)
+          amount = reward_item.fetch(:amount)
+          raise unless amount.is_a?(Integer)
+
+          obtain_item(user_id, item_id, item_type, amount, request_at)
 
           # 進捗の保存
           if init_bonus
@@ -467,7 +474,9 @@ module Isuconquest
           raise HttpError.new(403, 'forbidden')
         end
 
-        if user_session.fetch(:expired_at) < request_at
+        expired_at = user_session.fetch(:expired_at)
+        raise unless expired_at.is_a?(Integer)
+        if expired_at < request_at
           query = 'UPDATE user_sessions SET deleted_at=? WHERE session_id=?'
           db.xquery(query, request_at, sess_id)
           raise HttpError.new(401, 'session expired')
@@ -762,7 +771,8 @@ module Isuconquest
           boundary += weight
           if random < boundary
             result.push(v)
-            break
+            # ここでなんで steep check が怒られるのかわからない
+            break # steep:ignore
           end
         end
       end
